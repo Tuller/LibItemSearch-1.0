@@ -4,4 +4,4 @@
 ## Author: Tuller
 ## LoadOnDemand: 1
 LibStub.lua
-LibItemSearch-1.0\LibItemSearch-1.0.lua
+LibItemSearch-1.0.lua
