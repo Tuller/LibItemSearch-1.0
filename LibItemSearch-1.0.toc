@@ -1,4 +1,4 @@
-## Interface: 40000
+## Interface: 40100
 ## Title: LibItemSearch
 ## Notes: An item search library
 ## Author: Tuller
