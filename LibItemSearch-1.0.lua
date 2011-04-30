@@ -18,7 +18,7 @@
 	I kindof half want to make a full parser for this
 --]]
 
-local MAJOR, MINOR = "LibItemSearch-1.0", 3
+local MAJOR, MINOR = "LibItemSearch-1.0", 4
 local ItemSearch = LibStub:NewLibrary(MAJOR, MINOR)
 if not ItemSearch then return end
 
@@ -313,7 +313,7 @@ ItemSearch:RegisterTypedSearch{
 		['bop'] = ITEM_BIND_ON_PICKUP,
 		['bou'] = ITEM_BIND_ON_USE,
 		['quest'] = ITEM_BIND_QUEST,
-		['boa'] = ITEM_BIND_TO_ACCOUNT
+		['boa'] = ITEM_BIND_TO_BNETACCOUNT
 	}
 }
 
