@@ -1,5 +1,5 @@
 LibItemSearch
-	An item text search engine of some sort
+	A search engine for World of Warcraft items
 
 Grammar:
 	<search> 			:=	<intersect search>

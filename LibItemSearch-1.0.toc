@@ -1,7 +1,8 @@
-## Interface: 40100
+## Interface: 40200
 ## Title: LibItemSearch
 ## Notes: An item search library
+## OptionalDeps: LibStub
 ## Author: Tuller
 ## LoadOnDemand: 1
-LibStub.lua
+
 LibItemSearch-1.0.lua
