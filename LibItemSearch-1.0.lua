@@ -13,6 +13,7 @@ end
 
 --[[ Locals ]]--
 
+local tonumber, select, split = tonumber, select, strsplit
 local function useful(a) -- check if the search has a decent size
   return a and #a > 1
 end
@@ -59,7 +60,7 @@ function Lib:Find(itemLink, search)
 		return false
 	end
 
-  return self:FindUnionSearch(itemLink, strsplit('\124', search:lower()))
+  return self:FindUnionSearch(itemLink, split('\124', search:lower()))
 end
 
 
@@ -69,7 +70,7 @@ end
 function Lib:FindUnionSearch(item, ...)
 	for i = 1, select('#', ...) do
 		local search = select(i, ...)
-		if useful(search) and self:FindIntersectSearch(item, strsplit('\038', search)) then
+		if useful(search) and self:FindIntersectSearch(item, split('\038', search)) then
       return true
 		end
 	end
