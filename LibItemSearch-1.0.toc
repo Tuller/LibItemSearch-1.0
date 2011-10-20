@@ -1,4 +1,4 @@
-## Interface: 40300
+## Interface: 40200
 ## Title: LibItemSearch
 ## Notes: An item search library
 ## OptionalDeps: LibStub
