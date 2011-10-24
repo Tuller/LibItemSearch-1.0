@@ -129,29 +129,46 @@ function Lib:GetTypedSearch(id)
 end
 
 function Lib:FindTypedSearch(item, search, default)
-  if useful(search) then
-    local tag, operator, search = search:match('^[%s]*(.*:+)[%s]*([%>%<%=]*)[%s]*(.*)$')
-    if useful(search) then
-      operator = useful(operator) and operator
-    else
-      return
-    end
+  if not useful(search) then
+    return default
+  end
 
-    if useful(tag) then
-      for id, searchType in self:GetTypedSearches() do
-        if searchType.tag == tag then
-          return self:UseTypedSearch(searchType, item, operator, search)
-        end
-      end
+  local tag, rest = search:match('^[%s]*(%w+):(.*)$')
+  if tag then
+    if useful(rest) then
+      search = rest
     else
-      for id, searchType in self:GetTypedSearches() do
-        if self:UseTypedSearch(searchType, item, operator, search) then
-          return true
-        end
-      end
-      return false
+      return default
     end
   end
+
+  local operator, search = search:match('^[%s]*([%>%<%=]*)[%s]*(.*)$')
+  if useful(search) then
+    operator = useful(operator) and operator
+  else
+    return default
+  end
+
+  if tag then
+    tag = '^' .. tag
+    for id, searchType in self:GetTypedSearches() do
+      if searchType.tags then
+        for _, value in pairs(searchType.tags) do
+          if value:find(tag) then
+            return self:UseTypedSearch(searchType, item, operator, search)
+          end
+        end
+      end
+    end
+  else
+    for id, searchType in self:GetTypedSearches() do
+      if self:UseTypedSearch(searchType, item, operator, search) then
+        return true
+      end
+    end
+    return false
+  end
+
   return default
 end
 
@@ -168,8 +185,8 @@ end
 --[[ Item name ]]--
 
 Lib:RegisterTypedSearch{
-	id = 'itemName',
-  tag = 'n',
+  id = 'itemName',
+  tags = {'name'},
 
 	canSearch = function(self, operator, search)
 		return not operator and search
@@ -185,8 +202,8 @@ Lib:RegisterTypedSearch{
 --[[ Item type, subtype and equiploc ]]--
 
 Lib:RegisterTypedSearch{
-	id = 'itemTypeGeneric',
-  tag = 't',
+  id = 'itemType',
+  tags = {'type', 'slot'},
 
 	canSearch = function(self, operator, search)
 		return not operator and search
@@ -207,8 +224,8 @@ for i = 0, #ITEM_QUALITY_COLORS do
 end
 
 Lib:RegisterTypedSearch{
-	id = 'itemQuality',
-  tag = 'q',
+  id = 'itemQuality',
+  tags = {'quality'},
 
 	canSearch = function(self, _, search)
     for i, name in pairs(qualities) do
@@ -228,8 +245,8 @@ Lib:RegisterTypedSearch{
 --[[ Item level ]]--
 
 Lib:RegisterTypedSearch{
-	id = 'itemLevel',
-  tag = 'l'
+  id = 'itemLevel',
+  tags = {'level', 'lvl'},
 
 	canSearch = function(self, _, search)
     return tonumber(search)
@@ -274,7 +291,6 @@ end
 
 Lib:RegisterTypedSearch{
 	id = 'tooltip',
-  tag = 't',
 
 	canSearch = function(self, _, search)
 		return self.keywords[search]
@@ -400,7 +416,6 @@ end
 
 Lib:RegisterTypedSearch{
 	id = 'equipmentSet',
-  tag = 's',
 
 	canSearch = function(self, _, search)
 		return search and search:match('^s:(.+)$')
