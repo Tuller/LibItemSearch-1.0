@@ -290,7 +290,7 @@ local function link_FindSearchInTooltip(itemLink, search)
 end
 
 Lib:RegisterTypedSearch{
-	id = 'tooltip',
+	id = 'bindType',
 
 	canSearch = function(self, _, search)
 		return self.keywords[search]
@@ -301,6 +301,9 @@ Lib:RegisterTypedSearch{
 	end,
 
 	keywords = {
+    ['bind'] = 'bind',
+    ['soulbound'] = ITEM_BIND_ON_PICKUP,
+    ['bound'] = ITEM_BIND_ON_PICKUP,
 		['boe'] = ITEM_BIND_ON_EQUIP,
 		['bop'] = ITEM_BIND_ON_PICKUP,
 		['bou'] = ITEM_BIND_ON_USE,
@@ -310,14 +313,13 @@ Lib:RegisterTypedSearch{
 }
 
 Lib:RegisterTypedSearch{
-	id = 'tooltipDesc',
+	id = 'tooltip',
 
 	canSearch = function(self, _, search)
 		return search and search:match('^tt:(.+)$')
 	end,
 
 	findItem = function(self, itemLink, _, search)
-		--no match?, pull in the resut from tooltip parsing
 		tooltipScanner:SetHyperlink(itemLink)
 
 		local i = 1
