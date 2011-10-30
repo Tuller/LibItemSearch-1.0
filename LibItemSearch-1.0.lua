@@ -371,7 +371,7 @@ if IsAddOnLoaded('ItemRack') then
 			end
 		end
 		if (search ~= '*') and exactMatch and #setList == 0 then --if we just finished an exact, non-global (not "*"), name match search and still have no results, try one more time with partial ("starts with") set name matching instead
-			ES_FindSets_ItemRack(setList, search, false)
+			ES_FindSets(setList, search, false)
 		end
 	end
 
@@ -404,7 +404,7 @@ elseif IsAddOnLoaded('Wardrobe') then
 			end
 		end
 		if (search ~= '*') and exactMatch and #setList == 0 then --if we just finished an exact, non-global (not "*"), name match search and still have no results, try one more time with partial ("starts with") set name matching instead
-			ES_FindSets_Wardrobe(setList, search, false)
+			ES_FindSets(setList, search, false)
 		end
 	end
 
@@ -432,7 +432,7 @@ else
 			end
 		end
 		if (search ~= '*') and exactMatch and #setList == 0 then --if we just finished an exact, non-global (not "*"), name match search and still have no results, try one more time with partial ("starts with") set name matching instead
-			ES_FindSets_Blizzard(setList, search, false)
+			ES_FindSets(setList, search, false)
 		end
 	end
 
