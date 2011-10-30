@@ -85,7 +85,7 @@ function Lib:FindUnionSearch(item, ...)
 	for i = 1, select('#', ...) do
 		local search = select(i, ...)
 		if useful(search) and self:FindIntersectSearch(item, split('\038', search)) then
-      return true
+      		return true
 		end
 	end
 end
@@ -96,7 +96,7 @@ function Lib:FindIntersectSearch(item, ...)
 	for i = 1, select('#', ...) do
 		local search = select(i, ...)
 		if useful(search) and not self:FindNegatableSearch(item, search) then
-        return false
+        	return false
 		end
 	end
 	return true
@@ -303,6 +303,7 @@ local function link_FindSearchInTooltip(itemLink, search)
 	return result
 end
 
+
 Lib:RegisterTypedSearch{
 	id = 'bindType',
 
@@ -338,7 +339,7 @@ Lib:RegisterTypedSearch{
 		local i = 1
 		while i <= tooltipScanner:NumLines() do
 			local text =  _G[tooltipScanner:GetName() .. 'TextLeft' .. i]:GetText():lower()
-			if text and text:find(search) then
+			if text:find(search) then
 				return true
 			end
 			i = i + 1
@@ -450,7 +451,6 @@ else
 		return false
 	end
 end
-
 
 Lib:RegisterTypedSearch{
 	id = 'equipmentSet',
