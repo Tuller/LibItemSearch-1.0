@@ -15,11 +15,9 @@
 		<text search>		:=	<text>
 		<item set search>	:=	s:<setname> (setname can be * for all sets)
 		<op>				:=  : | = | == | != | ~= | < | > | <= | >=
-
-	I kindof half want to make a full parser for this
 --]]
 
-local Lib = LibStub:NewLibrary('LibItemSearch-1.0', 6)
+local Lib = LibStub:NewLibrary('LibItemSearch-1.0', 7)
 if not Lib then
   return
 else
@@ -87,7 +85,7 @@ function Lib:FindUnionSearch(item, ...)
 	for i = 1, select('#', ...) do
 		local search = select(i, ...)
 		if useful(search) and self:FindIntersectSearch(item, split('\038', search)) then
-      return true
+      		return true
 		end
 	end
 end
@@ -98,7 +96,7 @@ function Lib:FindIntersectSearch(item, ...)
 	for i = 1, select('#', ...) do
 		local search = select(i, ...)
 		if useful(search) and not self:FindNegatableSearch(item, search) then
-        return false
+        	return false
 		end
 	end
 	return true
@@ -202,7 +200,7 @@ end
 
 Lib:RegisterTypedSearch{
   id = 'itemName',
-  tags = {'n', 'name'},
+  tags = {'name'},
 
 	canSearch = function(self, operator, search)
 		return not operator and search
@@ -241,8 +239,7 @@ end
 
 Lib:RegisterTypedSearch{
 	id = 'itemQuality',
-	
-	tags = {'q', 'quality'},
+	tags = {'quality'},
 
 	canSearch = function(self, _, search)
 		for i, name in pairs(qualities) do
@@ -263,7 +260,6 @@ Lib:RegisterTypedSearch{
 
 Lib:RegisterTypedSearch{
 	id = 'itemLevel',
-	
 	tags = {'level', 'lvl'},
 
 	canSearch = function(self, _, search)
@@ -279,7 +275,7 @@ Lib:RegisterTypedSearch{
 }
 
 
---[[ Tooltip keywords ]]--
+--[[ Tooltip searches ]]--
 
 local tooltipCache = setmetatable({}, {__index = function(t, k) local v = {} t[k] = v return v end})
 local tooltipScanner = _G['LibItemSearchTooltipScanner'] or CreateFrame('GameTooltip', 'LibItemSearchTooltipScanner', UIParent, 'GameTooltipTemplate')
@@ -307,6 +303,7 @@ local function link_FindSearchInTooltip(itemLink, search)
 	return result
 end
 
+
 Lib:RegisterTypedSearch{
 	id = 'bindType',
 
@@ -319,9 +316,8 @@ Lib:RegisterTypedSearch{
 	end,
 
 	keywords = {
-    ['bind'] = 'bind',
-    ['soulbound'] = ITEM_BIND_ON_PICKUP,
-    ['bound'] = ITEM_BIND_ON_PICKUP,
+    	['soulbound'] = ITEM_BIND_ON_PICKUP,
+    	['bound'] = ITEM_BIND_ON_PICKUP,
 		['boe'] = ITEM_BIND_ON_EQUIP,
 		['bop'] = ITEM_BIND_ON_PICKUP,
 		['bou'] = ITEM_BIND_ON_USE,
@@ -343,7 +339,7 @@ Lib:RegisterTypedSearch{
 		local i = 1
 		while i <= tooltipScanner:NumLines() do
 			local text =  _G[tooltipScanner:GetName() .. 'TextLeft' .. i]:GetText():lower()
-			if text and text:find(search) then
+			if text:find(search) then
 				return true
 			end
 			i = i + 1
@@ -354,11 +350,10 @@ Lib:RegisterTypedSearch{
 }
 
 
---[[ equipment set search ]]--
+--[[ Equipment sets ]]--
 
 --Placeholder variables; will be replaced with references to the addon-appropriate handlers at runtime
-local ES_FindSets = {}
-local ES_CheckItem = {}
+local ES_FindSets, ES_CheckItem
 
 --Helper: Global Pattern Matching Function (matches ANY set name if search is *, or the EXACT set name if exactMatch is true, or any set name STARTING with the provided search terms if exactMatch is false (this means it will not match in middle of strings). all equipment set searches below use this function to FIRST try to find a set with the EXACT name entered, and if that fails they'll look for all sets that START with the search term, using recursive calls.
 local function ES_TrySetName(setName, search, exactMatch)
@@ -366,123 +361,100 @@ local function ES_TrySetName(setName, search, exactMatch)
 end
 
 --Addon Support: ItemRack
-local function ES_FindSets_ItemRack(setList, search, exactMatch)
-	for setName, _ in pairs(ItemRackUser.Sets) do
-		if ES_TrySetName(setName, search, exactMatch) then
-			if (search ~= '*') or (search == '*' and setName:sub(1,1) ~= '~') then --note: this additional tilde check skips internal ItemRack sets when doing a global set search (internal sets are prefixed with tilde, such as ~Unequip, and they contain temporary data that should not be part of a global search)
+if IsAddOnLoaded('ItemRack') then
+	function ES_FindSets(setList, search, exactMatch)
+		for setName, _ in pairs(ItemRackUser.Sets) do
+			if ES_TrySetName(setName, search, exactMatch) then
+				if (search ~= '*') or (search == '*' and setName:sub(1,1) ~= '~') then --note: this additional tilde check skips internal ItemRack sets when doing a global set search (internal sets are prefixed with tilde, such as ~Unequip, and they contain temporary data that should not be part of a global search)
+					table.insert(setList, setName)
+				end
+			end
+		end
+		if (search ~= '*') and exactMatch and #setList == 0 then --if we just finished an exact, non-global (not "*"), name match search and still have no results, try one more time with partial ("starts with") set name matching instead
+			ES_FindSets(setList, search, false)
+		end
+	end
+
+	local irSameID = (ItemRack and ItemRack.SameID or nil) --set up local reference for speed if they're an ItemRack user
+	function ES_CheckItem(itemLink, setList)
+		local itemID = string.match(itemLink or '','item:(%-?%d+)') or 0 --grab the baseID of the item we are searching for (we don't need the full itemString, since we'll only be doing a loose baseID comparison below)
+
+		for _, setName in pairs(setList) do
+			for _, irItemData in pairs(ItemRackUser.Sets[setName].equip) do --note: do not change this to ipairs() or it will abort scanning at empty slots in a set
+				--[[ commented out due to libItemSearch lacking a "best match before generic match" priority matching system, so we'll have to go for "generic match" only (below), which matches items that have the same base ItemID as items from the set, as ItemRack cannot guarantee that the stored ItemString will be valid anymore (if the user has modified the item since last saving the set)
+				if itemString == irItemData then -- strict match: perform a strict match to check if this is the *exact* same item (same gems, enchants, etc)
+					return true
+				end]]--
+
+				if irSameID(itemID, irItemData) then --loose match: use ItemRack's built-in "Base ItemID" comparison function to allow us to match any items that have the same base itemID (disregarding strict matching of gems, enchants, etc); due to libItemSearch limitations it's the best compromise and guarantees to always highlight the correct items even if we may catch some extras/duplicates that weren't part of the set
+					return true
+				end
+			end
+		end
+
+		return false
+	end
+
+--Addon Support: Wardrobe
+elseif IsAddOnLoaded('Wardrobe') then
+	function ES_FindSets(setList, search, exactMatch)
+		for _, waOutfit in ipairs(Wardrobe.CurrentConfig.Outfit) do
+			if ES_TrySetName(waOutfit.OutfitName, search, exactMatch) then
+				table.insert(setList, waOutfit) --insert an actual reference to the matching set's data table, instead of just storing the /name/ of the set. we do this due to how Wardrobe works (all sets are in a numerically indexed table and storing the table offset would therefore be unreliable)
+			end
+		end
+		if (search ~= '*') and exactMatch and #setList == 0 then --if we just finished an exact, non-global (not "*"), name match search and still have no results, try one more time with partial ("starts with") set name matching instead
+			ES_FindSets(setList, search, false)
+		end
+	end
+
+	function ES_CheckItem(itemLink, setList)
+		local itemID = tonumber(string.match(itemLink or '','item:(%-?%d+)') or 0) --grab the baseID of the item we are searching for (we don't need the full itemString, since we'll only be doing a loose baseID comparison below)
+
+		for _, waOutfit in pairs(setList) do
+			for _, waItemData in pairs(waOutfit.Item) do
+				if (waItemData.IsSlotUsed == 1) and (waItemData.ItemID == itemID) then --loose match: compare the current item's baseID to the baseID of the set item
+					return true
+				end
+			end
+		end
+
+		return false
+	end
+
+--Last Resort: Blizzard Equipment Manager
+else
+	function ES_FindSets(setList, search, exactMatch)
+		for i = 1, GetNumEquipmentSets() do
+			local setName = GetEquipmentSetInfo(i)
+			if ES_TrySetName(setName, search, exactMatch) then
 				table.insert(setList, setName)
 			end
 		end
+		if (search ~= '*') and exactMatch and #setList == 0 then --if we just finished an exact, non-global (not "*"), name match search and still have no results, try one more time with partial ("starts with") set name matching instead
+			ES_FindSets(setList, search, false)
+		end
 	end
-	if (search ~= '*') and exactMatch and #setList == 0 then --if we just finished an exact, non-global (not "*"), name match search and still have no results, try one more time with partial ("starts with") set name matching instead
-		ES_FindSets_ItemRack(setList, search, false)
-	end
-end
 
-local irSameID = (ItemRack and ItemRack.SameID or nil) --set up local reference for speed if they're an ItemRack user
-local function ES_CheckItem_ItemRack(itemLink, setList)
-	local itemID = string.match(itemLink or '','item:(%-?%d+)') or 0 --grab the baseID of the item we are searching for (we don't need the full itemString, since we'll only be doing a loose baseID comparison below)
+	function ES_CheckItem(itemLink, setList)
+		local itemID = tonumber(string.match(itemLink or '','item:(%-?%d+)') or 0) --grab the baseID of the item we are searching for (we don't need the full itemString, since we'll only be doing a loose baseID comparison below)
 
-	for _, setName in pairs(setList) do
-		for _, irItemData in pairs(ItemRackUser.Sets[setName].equip) do --note: do not change this to ipairs() or it will abort scanning at empty slots in a set
-			--[[ commented out due to libItemSearch lacking a "best match before generic match" priority matching system, so we'll have to go for "generic match" only (below), which matches items that have the same base ItemID as items from the set, as ItemRack cannot guarantee that the stored ItemString will be valid anymore (if the user has modified the item since last saving the set)
-			if itemString == irItemData then -- strict match: perform a strict match to check if this is the *exact* same item (same gems, enchants, etc)
-				return true
-			end]]--
-
-			if irSameID(itemID, irItemData) then --loose match: use ItemRack's built-in "Base ItemID" comparison function to allow us to match any items that have the same base itemID (disregarding strict matching of gems, enchants, etc); due to libItemSearch limitations it's the best compromise and guarantees to always highlight the correct items even if we may catch some extras/duplicates that weren't part of the set
-				return true
+		for _, setName in pairs(setList) do
+			local bzSetItemIDs = GetEquipmentSetItemIDs(setName)
+			for _, bzItemID in pairs(bzSetItemIDs) do --note: do not change this to ipairs() or it will abort scanning at empty slots in a set
+				if itemID == bzItemID then --loose match: compare the current item's baseID to the baseID of the set item
+					return true
+				end
 			end
 		end
-	end
 
-	return false
-end
-
---Addon Support: Wardrobe
-local function ES_FindSets_Wardrobe(setList, search, exactMatch)
-	for _, waOutfit in ipairs(Wardrobe.CurrentConfig.Outfit) do
-		if ES_TrySetName(waOutfit.OutfitName, search, exactMatch) then
-			table.insert(setList, waOutfit) --insert an actual reference to the matching set's data table, instead of just storing the /name/ of the set. we do this due to how Wardrobe works (all sets are in a numerically indexed table and storing the table offset would therefore be unreliable)
-		end
-	end
-	if (search ~= '*') and exactMatch and #setList == 0 then --if we just finished an exact, non-global (not "*"), name match search and still have no results, try one more time with partial ("starts with") set name matching instead
-		ES_FindSets_Wardrobe(setList, search, false)
+		return false
 	end
 end
-
-local function ES_CheckItem_Wardrobe(itemLink, setList)
-	local itemID = tonumber(string.match(itemLink or '','item:(%-?%d+)') or 0) --grab the baseID of the item we are searching for (we don't need the full itemString, since we'll only be doing a loose baseID comparison below)
-
-	for _, waOutfit in pairs(setList) do
-		for _, waItemData in pairs(waOutfit.Item) do
-			if (waItemData.IsSlotUsed == 1) and (waItemData.ItemID == itemID) then --loose match: compare the current item's baseID to the baseID of the set item
-				return true
-			end
-		end
-	end
-
-	return false
-end
-
---Addon Support: Blizzard Equipment Manager
-local function ES_FindSets_Blizzard(setList, search, exactMatch)
-	for i = 1, GetNumEquipmentSets() do
-		local setName = GetEquipmentSetInfo(i)
-		if ES_TrySetName(setName, search, exactMatch) then
-			table.insert(setList, setName)
-		end
-	end
-	if (search ~= '*') and exactMatch and #setList == 0 then --if we just finished an exact, non-global (not "*"), name match search and still have no results, try one more time with partial ("starts with") set name matching instead
-		ES_FindSets_Blizzard(setList, search, false)
-	end
-end
-
-local function ES_CheckItem_Blizzard(itemLink, setList)
-	local itemID = tonumber(string.match(itemLink or '','item:(%-?%d+)') or 0) --grab the baseID of the item we are searching for (we don't need the full itemString, since we'll only be doing a loose baseID comparison below)
-
-	for _, setName in pairs(setList) do
-		local bzSetItemIDs = GetEquipmentSetItemIDs(setName)
-		for _, bzItemID in pairs(bzSetItemIDs) do --note: do not change this to ipairs() or it will abort scanning at empty slots in a set
-			if itemID == bzItemID then --loose match: compare the current item's baseID to the baseID of the set item
-				return true
-			end
-		end
-	end
-
-	return false
-end
-
---The search handler has been registered above and all the addon-specific search functions are loaded, now bind our generic placeholder variables to the appropriate search function, giving priority to 3rd party addons and defaulting to Blizzard Equipment manager if nothing else is found
-local function ES_RegisterHandler()
-	--ItemRack
-	if IsAddOnLoaded('ItemRack') then
-		ES_FindSets = ES_FindSets_ItemRack
-		ES_CheckItem = ES_CheckItem_ItemRack
-		return true
-	end
-
-	--Wardrobe
-	if IsAddOnLoaded('Wardrobe') then
-		ES_FindSets = ES_FindSets_Wardrobe
-		ES_CheckItem = ES_CheckItem_Wardrobe
-		return true
-	end
-
-	--FIXME TODO: ...other popular 3rd party equipment managers here, perhaps Outfitter? With my new super easy structure it would be extremely easy to add more equipment manager addons. You just need to add two handlers above (making sure to use the set name search function properly, for consistent name matching) and a new bind down here, and voila. No more CODE NESTING or bad logic.
-
-	--Use the Blizzard Equipment Manager as a last resort if the user didn't have any supported 3rd party equipment managers
-	ES_FindSets = ES_FindSets_Blizzard
-	ES_CheckItem = ES_CheckItem_Blizzard
-	return true
-end
-ES_RegisterHandler() --register the appropriate equipment manager handler
-
 
 Lib:RegisterTypedSearch{
 	id = 'equipmentSet',
-	
-	tags = {'s', 'set'},
+	tags = {'set'},
 
 	canSearch = function(self, operator, search)
 		return not operator and search
